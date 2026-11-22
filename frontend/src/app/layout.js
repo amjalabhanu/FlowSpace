@@ -1,4 +1,5 @@
 import "../styles/globals.css";
+import ClientProviders from "@/components/layout/ClientProviders";
 
 export const metadata = {
   title: "FlowSpace",
@@ -8,7 +9,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ClientProviders>{children}</ClientProviders>
+      </body>
     </html>
   );
 }
