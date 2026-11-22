@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { API } from "@/constants/api";
 import { useRouter } from "next/navigation";
 import {
   Eye,
@@ -13,11 +14,9 @@ import {
   LockKeyhole,
   ArrowRight,
 } from "lucide-react";
-import { useDemoAuth } from "@/context/DemoAuthContext";
 
 export default function RegisterForm() {
   const router = useRouter();
-  const { register } = useDemoAuth();
   const [form, setForm] = useState({
     name: "",
     username: "",
@@ -87,62 +86,64 @@ export default function RegisterForm() {
     return Object.keys(newErrors).length === 0;
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  
+async function handleSubmit(e) {
+  e.preventDefault();
+  setMessage("");
 
-    setMessage("");
-    console.log("Register API:", API.REGISTER);
+  if (!validateForm()) return;
 
-    if (!validateForm()) return;
+  setLoading(true);
 
-    setLoading(true);
-
-    try {
-      await register({
+  try {
+    const response = await fetch(API.REGISTER, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         name: form.name.trim(),
         username: form.username.trim(),
-        email: form.email.trim(),
-      });
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      }),
+    });
 
-      const data = await response.json().catch(() => ({}));
+    const result = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        if (response.status === 409) {
-          const errorMessage = data.message || "";
+    if (!response.ok || !result.success) {
+      const errorMessage = result.message || "Registration failed.";
 
-          if (errorMessage.toLowerCase().includes("email")) {
-            setErrors({ email: "This email is already registered." });
-          } else if (errorMessage.toLowerCase().includes("username")) {
-            setErrors({ username: "This username is already taken." });
-          } else {
-            setErrors({ form: errorMessage || "Account already exists." });
-          }
-        } else if (response.status === 400 || response.status === 422) {
-          setErrors({
-            form: data.message || "Please check your registration details.",
-          });
+      if (response.status === 409) {
+        if (errorMessage.toLowerCase().includes("email")) {
+          setErrors({ email: "This email is already registered." });
+        } else if (errorMessage.toLowerCase().includes("username")) {
+          setErrors({ username: "This username is already taken." });
         } else {
-          setErrors({
-            form: data.message || "Registration failed. Please try again.",
-          });
+          setErrors({ form: errorMessage });
         }
-
-        return;
+      } else {
+        setErrors({ form: errorMessage });
       }
 
-      setMessage(
-        data.message || "Account created successfully. You can now sign in."
-      );
-
-      // TODO: Add navigation after confirming Bhuwan's registration flow.
-    } catch (error) {
-      setErrors({
-        form: "The local demo account could not be created. Please try again.",
-      });
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    setMessage("Account created successfully! Redirecting to login...");
+
+    router.push("/login");
+  } catch (error) {
+    console.error("Registration error:", error);
+
+    setErrors({
+      form: error.message || "Unable to register. Please try again.",
+    });
+  } finally {
+    setLoading(false);
   }
+}
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

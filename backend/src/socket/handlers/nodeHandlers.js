@@ -148,8 +148,43 @@ export function registerNodeHandlers(io, socket) {
       }
     );
   });
+  // LIVE NODE MOVEMENT PREVIEW (NO DATABASE WRITE)
+  socket.on("node:move:preview", async (payload = {}) => {
+    try {
+      const { diagramId, operationId, nodeId, position } = payload;
 
+      if (
+        typeof diagramId !== "string" ||
+        typeof operationId !== "string" ||
+        typeof nodeId !== "string" ||
+        !position ||
+        !Number.isFinite(position.x) ||
+        !Number.isFinite(position.y)
+      ) {
+        return;
+      }
 
+      if (!socket.data.joinedDiagrams?.has(diagramId)) {
+        return;
+      }
+
+      const { error } = await getEditableDiagram(socket, diagramId);
+
+      if (error) return;
+
+      socket.to(`diagram:${diagramId}`).emit("diagram:operation", {
+        diagramId,
+        operationId,
+        type: "node:move:preview",
+        payload: {
+          nodeId,
+          position,
+        },
+      });
+    } catch (error) {
+      console.error("Node movement preview error:", error);
+    }
+  });
   // MOVE NODE
   socket.on("node:move", async (payload = {}, ack) => {
     const { position } = payload;
